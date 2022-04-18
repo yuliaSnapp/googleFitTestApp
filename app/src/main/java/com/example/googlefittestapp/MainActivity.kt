@@ -94,9 +94,10 @@ class MainActivity : AppCompatActivity() {
         val startTime = calendar.timeInMillis
 
         return DataReadRequest.Builder()
-            .aggregate(DataType.TYPE_STEP_COUNT_DELTA, DataType.AGGREGATE_STEP_COUNT_DELTA)
-            .bucketByTime(1, TimeUnit.DAYS)
             .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
+            .bucketByTime(1, TimeUnit.DAYS)
+            .aggregate(DataType.TYPE_STEP_COUNT_DELTA)
+            .aggregate(DataType.AGGREGATE_STEP_COUNT_DELTA)
             .build()
     }
 
@@ -114,8 +115,8 @@ class MainActivity : AppCompatActivity() {
 
         for (dp in dataSet.dataPoints) {
             dp.dataType.fields.forEach {
-                binding.titleInfo.text = it.name
-                binding.info.text = "${dp.getValue(it)}"
+                binding.titleDailyStep.text = it.name
+                binding.dailyStep.text = "${dp.getValue(it)}"
             }
         }
     }
