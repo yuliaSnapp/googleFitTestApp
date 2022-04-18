@@ -24,14 +24,16 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
-        insertAndReadData()
-
+        insertAndReadData(-1, 1, 0)
+        insertAndReadData(-4, 14, 1)
+        insertAndReadData(-4, 28, 2)
 
     }
 
     private fun getGoogleAccount() = GoogleSignIn.getLastSignedInAccount(this)
 
-    private fun insertAndReadData() = insertData().continueWith { readHistoryData() }
+    private fun insertAndReadData(amount: Int, day: Int, field: Int) =
+        insertData().continueWith { readHistoryData(amount, day, field) }
 
     private fun insertData(): Task<Void> {
         val dataSet = insertFitnessData()
@@ -44,13 +46,14 @@ class MainActivity : AppCompatActivity() {
             }
     }
 
-    private fun readHistoryData(): Task<DataReadResponse> {
-        val readRequest = queryFitnessData()
+    private fun readHistoryData(amount: Int, day: Int, field: Int): Task<DataReadResponse> {
+        val readRequest = queryFitnessData(amount, day)
 
         return Fitness.getHistoryClient(this, getGoogleAccount()!!)
             .readData(readRequest)
             .addOnSuccessListener { dataReadResponse ->
-                printData(dataReadResponse)
+                printData(dataReadResponse, field)
+                Log.i(TAG, "$dataReadResponse '''' $readRequest ")
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "There was a problem reading the data.", e)
@@ -84,39 +87,44 @@ class MainActivity : AppCompatActivity() {
             ).build()
     }
 
-    private fun queryFitnessData(): DataReadRequest {
+    private fun queryFitnessData(amount: Int, day: Int): DataReadRequest {
 
         val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
         val now = Date()
         calendar.time = now
         val endTime = calendar.timeInMillis
-        calendar.add(Calendar.WEEK_OF_YEAR, -1)
+        calendar.add(Calendar.WEEK_OF_YEAR, amount)
         val startTime = calendar.timeInMillis
 
         return DataReadRequest.Builder()
             .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
-            .bucketByTime(1, TimeUnit.DAYS)
+            .bucketByTime(day, TimeUnit.DAYS)
             .aggregate(DataType.TYPE_STEP_COUNT_DELTA)
-            .aggregate(DataType.AGGREGATE_STEP_COUNT_DELTA)
             .build()
     }
 
-    private fun printData(dataReadResult: DataReadResponse) {
+    private fun printData(dataReadResult: DataReadResponse, field: Int) {
         if (dataReadResult.buckets.isNotEmpty()) {
             for (bucket in dataReadResult.buckets) {
-                bucket.dataSets.forEach { dumpDataSet(it) }
+                bucket.dataSets.forEach { dumpDataSet(it, field) }
             }
         } else if (dataReadResult.dataSets.isNotEmpty()) {
-            dataReadResult.dataSets.forEach { dumpDataSet(it) }
+            dataReadResult.dataSets.forEach { dumpDataSet(it, field) }
         }
     }
 
-    private fun dumpDataSet(dataSet: DataSet) {
+    private fun dumpDataSet(dataSet: DataSet, field: Int) {
 
         for (dp in dataSet.dataPoints) {
             dp.dataType.fields.forEach {
-                binding.titleDailyStep.text = it.name
-                binding.dailyStep.text = "${dp.getValue(it)}"
+                when (field) {
+                    0 -> binding.dailyStep.text = "${dp.getValue(it)}"
+
+                    1 -> binding.weekStep.text = "${dp.getValue(it)}"
+
+                    2 -> binding.monthStep.text = "${dp.getValue(it)}"
+
+                }
             }
         }
     }
